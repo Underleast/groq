@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 import httpx
 import os
 import logging
@@ -8,17 +8,16 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-LITELLM_URL = os.getenv(
-    "LITELLM_URL",
-    "https://groq-zt83.onrender.com/v1/chat/completions"
-)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "openai/gpt-oss-120b"
 
 # -------- Anthropic -> OpenAI --------
 def to_openai(data):
     return {
-        "model": "groq",
+        "model": GROQ_MODEL,
         "messages": data.get("messages", []),
-        "temperature": data.get("temperature", 1),
+        "temperature": data.get("temperature", 0.7),
         "max_tokens": data.get("max_tokens", 1024),
     }
 
@@ -62,25 +61,29 @@ async def messages(request: Request):
     body.pop("reasoning_effort", None)
     body.pop("tools", None)
     body.pop("browser_search", None)
+    body.pop("thinking", None)
+    body.pop("response_format", None)
 
     openai_payload = to_openai(body)
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {GROQ_API_KEY}"
+    }
 
     async with httpx.AsyncClient(timeout=60) as client:
-        res = await client.post(LITELLM_URL, json=openai_payload)
+        res = await client.post(GROQ_URL, json=openai_payload, headers=headers)
         data = res.json()
-        logger.info(f"LiteLLM response: {data}")
+        logger.info(f"Groq response status: {res.status_code}")
 
     anthropic_response = to_anthropic(data)
-    logger.info(f"Anthropic response: {anthropic_response}")
     from fastapi.responses import JSONResponse
     return JSONResponse(content=anthropic_response)
 
 # health check
-from fastapi import Response
-
 @app.api_route("/", methods=["GET", "HEAD"])
 @app.api_route("/health", methods=["GET", "HEAD"])
 def health(request: Request):
     if request.method == "HEAD":
         return Response(status_code=200)
-    return {"status": "ok"}
+    return {"status": "ok", "groq_key_set": bool(GROQ_API_KEY)}
