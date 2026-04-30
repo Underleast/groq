@@ -1,10 +1,9 @@
 services:
   - type: web
-    name: groq-litellm-proxy
-    runtime: docker
+    name: claude-groq-bridge
+    env: docker
     plan: free
+    region: frankfurt
     envVars:
-      - key: GROQ_API_KEY
-        sync: false
-    healthCheckPath: /health
-    port: 10000
+      - key: LITELLM_URL
+        value: https://groq-zt83.onrender.com/v1/chat/completions
