@@ -1,0 +1,21 @@
+model_list:
+  - model_name: groq
+    litellm_params:
+      model: openai/gpt-oss-120b
+      api_base: https://api.groq.com/openai/v1
+      api_key: os.environ/GROQ_API_KEY
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+
+router_settings:
+  routing_strategy: simple-shuffle
+
+general_settings:
+  alerting: []
+  alert_types: []
+  database_connection_pool_limit: 10
+  database_connection_timeout: 60
+  health_check_interval: 300
+
