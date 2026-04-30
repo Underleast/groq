@@ -1,6 +1,10 @@
 from fastapi import FastAPI, Request
 import httpx
 import os
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -20,10 +24,16 @@ def to_openai(data):
 
 # -------- OpenAI -> Anthropic --------
 def to_anthropic(data):
-    try:
-        text = data["choices"][0]["message"]["content"]
-    except:
-        text = ""
+    # Check if LiteLLM returned an error
+    if "error" in data:
+        logger.error(f"LiteLLM error: {data['error']}")
+        text = f"[Error from backend: {data['error'].get('message', 'Unknown error')}]"
+    else:
+        try:
+            text = data["choices"][0]["message"]["content"]
+        except Exception as e:
+            logger.error(f"Failed to extract text from response: {e}, data: {data}")
+            text = ""
 
     return {
         "id": "msg_" + data.get("id", "local"),
@@ -58,8 +68,10 @@ async def messages(request: Request):
     async with httpx.AsyncClient(timeout=60) as client:
         res = await client.post(LITELLM_URL, json=openai_payload)
         data = res.json()
+        logger.info(f"LiteLLM response: {data}")
 
     anthropic_response = to_anthropic(data)
+    logger.info(f"Anthropic response: {anthropic_response}")
     from fastapi.responses import JSONResponse
     return JSONResponse(content=anthropic_response)
 
