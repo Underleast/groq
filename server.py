@@ -64,7 +64,11 @@ async def messages(request: Request):
     return JSONResponse(content=anthropic_response)
 
 # health check
-@app.get("/")
-@app.get("/health")
-def health():
+from fastapi import Response
+
+@app.api_route("/", methods=["GET", "HEAD"])
+@app.api_route("/health", methods=["GET", "HEAD"])
+def health(request: Request):
+    if request.method == "HEAD":
+        return Response(status_code=200)
     return {"status": "ok"}
