@@ -26,12 +26,21 @@ def to_anthropic(data):
         text = ""
 
     return {
+        "id": "msg_" + data.get("id", "local"),
+        "type": "message",
+        "role": "assistant",
         "content": [
             {
                 "type": "text",
                 "text": text
             }
-        ]
+        ],
+        "model": data.get("model", "claude-3-opus-20240229"),
+        "stop_reason": "end_turn",
+        "usage": {
+            "input_tokens": data.get("usage", {}).get("prompt_tokens", 0),
+            "output_tokens": data.get("usage", {}).get("completion_tokens", 0)
+        }
     }
 
 # -------- MAIN ENDPOINT --------
@@ -50,9 +59,12 @@ async def messages(request: Request):
         res = await client.post(LITELLM_URL, json=openai_payload)
         data = res.json()
 
-    return to_anthropic(data)
+    anthropic_response = to_anthropic(data)
+    from fastapi.responses import JSONResponse
+    return JSONResponse(content=anthropic_response)
 
 # health check
 @app.get("/")
+@app.get("/health")
 def health():
     return {"status": "ok"}
